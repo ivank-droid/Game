@@ -1,8 +1,6 @@
 name: Build APK
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -20,10 +18,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
       - name: Python packages
-        run: pip install --upgrade buildozer "cython<3" virtualenv setuptools
+        run: pip install --upgrade "buildozer==1.5.0" "cython==0.29.37" virtualenv setuptools
       - name: Build
-        run: buildozer -v android debug
+        run: |
+          set -o pipefail
+          buildozer -v android debug 2>&1 | tee build.log
+      - name: Show end of log
+        if: failure()
+        run: |
+          echo "=== ERRORS ==="
+          grep -n -i -E "error|failed|fatal" build.log | tail -n 25
+          echo "=== LAST 50 LINES ==="
+          tail -n 50 build.log
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: gamecenter-apk
-          path: bin/*.apk
+          name: gamecenter-result
+          path: |
+            bin/*.apk
+            build.log
